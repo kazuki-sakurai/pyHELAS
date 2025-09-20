@@ -3,9 +3,47 @@ import numpy as np
 import vector
 from math import sqrt, cos, sin, pi
 
-# This code is based on the HELAS paper: 
-# https://lib-extopc.kek.jp/preprints/PDF/1991/9124/9124011.pdf
-# However, we modified the fomula such that the 1j factor is removed from the propagators.
+# This code is based on the HELAS paper: https://lib-extopc.kek.jp/preprints/PDF/1991/9124/9124011.pdf
+# We use the convention in which the 1j factor is absent in the coupling and the propagators.
+
+####################
+# External lines 
+####################
+# IXXXXX(p, hel, is_fermion): fermion or anti-fermion line flowing-in the blob. 
+# OXXXXX(p, hel, is_fermion): fermion anti-fermion flowing-out the blob
+# VXXXXX(p, hel, in_out): vector boson line, in or out
+# SXXXXX(p, in_out): scalar boson line, in or out
+
+####################
+# FFV vertex 
+####################
+# IOVXXXX(FI,FO,VC,G): AMPLITUDE out of FI FO VC 
+# FVIXXX(FI,VC,G,FMASS,FWIDTH): FI out of FI VC  
+# FVOXXX(FO,VC,G,FMASS,FWIDTH): FO out of FO VC
+# JIOXXX(FI,FO,G,VMASS,VWIDTH) J^mu out of FI FO
+# J3XXXX(FI,FO, GAF,GZF ,m,width, Info): J3^mu out of FI FO
+
+####################
+# FFS vertex 
+####################
+# IOSXXX(FI,FO,SC,GC): AMPLITUDE out of FI FO SC
+# FSIXXX(FI,SC,GC,FMASS,FWIDTH): FI out of FI SC
+# FSOXXX(FO,SC,GC,FMASS,FWIDTH): FO out of FO SC
+# HIOXXX(FI,FO,GC,SMASS,SWIDTH): SC out of FI FO
+
+####################
+# VVV vertex 
+####################
+# VVVXXX(WM,WP,W3,G): AMPLITUDE out of WM WP W3
+# JVVXXX(V1,V2,G,VMASS,VWIDTH): J^mu out of V1 V2
+
+####################
+# VVS vertex 
+####################
+# VVSXXX(V1,V2,SC,G): AMPLITUDE out of V1 V2 SC
+# JVSXXX(VC,SC,G,VMASS,VWIDTH): J^mu out of VC SC
+# HVVXXX(V1,V2,G,SMASS,SWIDTH): SC out of V1 V2
+
 
 class Structure: pass
 
@@ -31,7 +69,7 @@ Info = {
     'gamma': {'m':0, 'w':0},
     'Z': {'m':91.188, 'w':2.441404}, 
     'W': {'m':80.4, 'w':2.1},  
-    'const': {'Gf':Gf, 'aEM':aEM, 'thW':thW, 'sinW':sinW, 'cosW':cosW, 'gEM':gEM, 'gW':gW },
+    'const': {'Gf':Gf, 'aEM':aEM, 'thW':thW, 'sinW':sinW, 'cosW':cosW, 'gEM':gEM, 'gW':gW, 'vev': vev },
     'G': {'WF': [gW, 0], 'WWA': gW*sinW, 'WWZ': gW*cosW, 'hZZ': 2j*mZ**2/vev, 'hWW': 2j*mW**2/vev}
     }
 
@@ -204,7 +242,8 @@ def IOVXXX(FI, FO, VC, G):
 def FVIXXX(FI,VC,G,FMASS,FWIDTH):
     sp = FI.sp 
     pol_slash = get_shashed( VC.pol )
-    COUP = 1j*(G[0]*PL + G[1]*PR)
+    #COUP = 1j*(G[0]*PL + G[1]*PR)
+    COUP = G[0]*PL + G[1]*PR # changed
     p_out = FI.p - VC.p
     prop = get_fermion_propagator(p_out, FMASS, FWIDTH)
     sp_out = prop @ pol_slash @ COUP @ sp    
@@ -216,7 +255,8 @@ def FVIXXX(FI,VC,G,FMASS,FWIDTH):
 def FVOXXX(FO,VC,G,FMASS,FWIDTH):
     spbar = FO.spbar 
     pol_slash = get_shashed( VC.pol )
-    COUP = 1j*(G[0]*PL + G[1]*PR)
+    #COUP = 1j*(G[0]*PL + G[1]*PR)
+    COUP = G[0]*PL + G[1]*PR # changed
     p_out = FO.p + VC.p
     prop = get_fermion_propagator(p_out, FMASS, FWIDTH)
     spbar_out = spbar @ pol_slash @ COUP @ prop     
@@ -231,7 +271,8 @@ def JIOXXX(FI,FO,G,VMASS,VWIDTH):
 
     sp = FI.sp 
     spbar = FO.spbar 
-    COUP = 1j*(G[0]*PL + G[1]*PR)
+    #COUP = 1j*(G[0]*PL + G[1]*PR)
+    COUP = G[0]*PL + G[1]*PR # changed 
     prop = get_gauge_propagator(q,VMASS,VWIDTH)
     pol_out = []
     for mu in range(4):
@@ -262,7 +303,8 @@ def J3XXXX(FI,FO, GAF,GZF ,m,width, Info):
     term2 = cW/(DZ *m**2) * (GZF[0]*Ldot(q,JL) + GZF[1]*Ldot(q,JR)) * q   
     term3 = eQ*sinW * (m**2 - 1j*m*width) / (DA * DZ) * JR  
 
-    J3 = 1j*(term1 + term2 + term3)
+    #J3 = 1j*(term1 + term2 + term3)
+    J3 = term1 + term2 + term3
 
     data = Structure()
     data.p = q
@@ -303,8 +345,10 @@ def J3XXXX3(FI,FO, GAF,GZF ,m,width, Info):
     for mu in range(4):
         tmpZ, tmpA = 0, 0
         for nu in range(4):    
-            tmpZ += cW * prop_Z[mu,nu] * gmetD[nu] * 1j*( GZF[0]*JL[nu] + GZF[1]*JR[nu]) ### extra minus sign!!
-            tmpA += sW * prop_A[mu,nu] * gmetD[nu] * 1j*eQ*( JL[nu] + JR[nu]) ### extra minus sign!!
+            #tmpZ += cW * prop_Z[mu,nu] * gmetD[nu] * 1j*( GZF[0]*JL[nu] + GZF[1]*JR[nu]) ### extra minus sign!!
+            #tmpA += sW * prop_A[mu,nu] * gmetD[nu] * 1j*eQ*( JL[nu] + JR[nu]) ### extra minus sign!!
+            tmpZ += cW * prop_Z[mu,nu] * gmetD[nu] * ( GZF[0]*JL[nu] + GZF[1]*JR[nu]) ### 1j removed 
+            tmpA += sW * prop_A[mu,nu] * gmetD[nu] * eQ*( JL[nu] + JR[nu]) ### 1j removed
         term_Z.append(tmpZ)
         term_A.append(tmpA)
     term_Z = np.array(term_Z)
@@ -316,41 +360,41 @@ def J3XXXX3(FI,FO, GAF,GZF ,m,width, Info):
     data.pol = J3 
     return data
 
+def IOSXXX(FI,FO,SC,GC):
+    COUP = GC[0]*PL + GC[1]*PR
+    amp = SC.WF * FO.spbar @ COUP @ FI.sp
+    return amp  
 
-# def IOSXXX(FI,FO,SC,GC):
-#     COUP = GC[0]*PL + GC[1]*PR
-#     amp = SC.WF * FO.spbar @ COUP @ FI.sp
-#     return amp  
-
-# def FSIXXX(FI,SC,GC,FMASS,FWIDTH):
-#     p_out = FI.p - SC.p    
-#     COUP = GC[0]*PL + GC[1]*PR
-#     prop = get_fermion_propagator(p_out, FMASS, FWIDTH)
-#     sp_out = SC.WF * prop @ COUP @ FI.sp 
-#     data = Structure()
-#     data.p = p_out
-#     data.sp = sp_out
-#     return data
+def FSIXXX(FI,SC,GC,FMASS,FWIDTH):
+    p_out = FI.p - SC.p    
+    #COUP = 1j*(GC[0]*PL + GC[1]*PR) 
+    COUP = GC[0]*PL + GC[1]*PR # changed 
+    prop = get_fermion_propagator(p_out, FMASS, FWIDTH)
+    sp_out = SC.WF * prop @ COUP @ FI.sp 
+    data = Structure()
+    data.p = p_out
+    data.sp = sp_out
+    return data
        
-# def FSOXXX(FO,SC,GC,FMASS,FWIDTH):
-#     p_out = FO.p + SC.p
-#     COUP = GC[0]*PL + GC[1]*PR
-#     prop = get_fermion_propagator(p_out, FMASS, FWIDTH)
-#     spbar_out = SC.WF * FO.spbar @ COUP @ prop
-#     data = Structure()
-#     data.p = p_out
-#     data.spbar = spbar_out
-#     return data
+def FSOXXX(FO,SC,GC,FMASS,FWIDTH):
+    p_out = FO.p + SC.p
+    COUP = GC[0]*PL + GC[1]*PR
+    prop = get_fermion_propagator(p_out, FMASS, FWIDTH)
+    spbar_out = SC.WF * FO.spbar @ COUP @ prop
+    data = Structure()
+    data.p = p_out
+    data.spbar = spbar_out
+    return data
 
-# def HIOXXX(FI,FO,GC,SMASS,SWIDTH):
-#     COUP = GC[0]*PL + GC[1]*PR
-#     p_out = -FI.p + FO.p 
-#     prop = get_scalar_propagator(p_out, SMASS,SWIDTH)       
-#     WF = prop * FO.spbar @ COUP @ FI.sp
-#     data = Structure()
-#     data.p = p_out
-#     data.WF = WF
-#     return data
+def HIOXXX(FI,FO,GC,SMASS,SWIDTH):
+    COUP = GC[0]*PL + GC[1]*PR
+    p_out = -FI.p + FO.p 
+    prop = get_scalar_propagator(p_out, SMASS,SWIDTH)       
+    WF = prop * FO.spbar @ COUP @ FI.sp
+    data = Structure()
+    data.p = p_out
+    data.WF = WF
+    return data
 
 def VVSXXX(V1,V2,SC,G):
     amp = G * SC.WF * Ldot(V1.pol, V2.pol)
@@ -366,7 +410,8 @@ def JVSXXX(VC,SC,G,VMASS,VWIDTH):
         for nu in range(4):    
             tmp += prop[mu,nu] * gmetD[nu] * VC.pol[nu]            
         vec.append(tmp)
-    pol= 1j * G * SC.WF * np.array( vec )  # changed   
+    pol= G * SC.WF * np.array( vec )  
+    #pol= 1j * G * SC.WF * np.array( vec )  # changed   
     data = Structure()
     data.p = q
     data.pol = pol
@@ -423,7 +468,8 @@ def JVVXXX(V1,V2,G,VMASS,VWIDTH):
 
     #prop = -1j/( Ldot(q,q) - VMASS**2 + 1j*VMASS*VWIDTH )
     prop = -1/( Ldot(q,q) - VMASS**2 + 1j*VMASS*VWIDTH ) # changed
-    Jout = 1j*G*prop*( J12 - JS*q ) 
+    #Jout = 1j*G*prop*( J12 - JS*q ) 
+    Jout = G*prop*( J12 - JS*q ) # changed
     data = Structure()
     data.p = q
     data.pol = Jout

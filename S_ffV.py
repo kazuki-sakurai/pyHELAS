@@ -143,11 +143,67 @@ def get_rho_pure(cth, msq):
     return rho, A
 
 
+###################
+# Diagram-1 
+###################
+# Method-A: H + Z -> Z*, Amp = Z + f + fbar )
+def get_amp1A(externals, COUP ):
+    FO, FI, VC, SC = externals 
+    Zs = pyHELAS.JVSXXX(VC, SC, g_HZZ, mZ, Zwidth)
+    amp = pyHELAS.IOVXXX(FI, FO, Zs, COUP)
+    return amp
+
+# Method-B: f + fbar -> Z*, Amp = Z + Z* + H 
+def get_amp1B(externals, COUP ):
+    FO, FI, VC, SC = externals 
+    Zs = pyHELAS.JIOXXX(FI,FO, COUP, mZ, Zwidth) 
+    amp = pyHELAS.VVSXXX(Zs, VC, SC, g_HZZ) 
+    return amp
+
+###################
+# Diagram-2
+###################
+# Method-A: fbar + H -> f*, Amp = f* + Z + f )
+def get_amp2A(externals, COUP ):
+    FO, FI, VC, SC = externals 
+    FI_off = pyHELAS.FSIXXX(FI,SC,G_Hff,mf,fwidth)
+    amp = pyHELAS.IOVXXX(FI_off,FO,VC,COUP)
+    return amp
+
+# Method-B: Z + f -> f*, Amp = f* + H + fbar 
+def get_amp2B(externals, COUP ):
+    FO, FI, VC, SC = externals 
+    FO_off = pyHELAS.FVOXXX(FO,VC,COUP,mf,fwidth)
+    amp = pyHELAS.IOSXXX(FI,FO_off,SC,G_Hff)
+    return amp
+
+###################
+# Diagram-3
+###################
+# Method-A: f + H -> fbar*, Amp = fbar* + Z + fbar )
+def get_amp3A(externals, COUP ):
+    FO, FI, VC, SC = externals 
+    FO_off = pyHELAS.FSOXXX(FO,SC,G_Hff,mf,fwidth)
+    amp = pyHELAS.IOVXXX(FI,FO_off,VC,COUP)
+    return amp
+
+# Method-B: Z + fbar -> fbar*, Amp = fbar* + H + f 
+def get_amp3B(externals, COUP ):
+    FO, FI, VC, SC = externals 
+    FI_off = pyHELAS.FVIXXX(FI,VC,COUP,mf,fwidth)
+    amp = pyHELAS.IOSXXX(FI_off,FO,SC,G_Hff)
+    return amp
+
+
+
 mH = M = 125.
 mZ = mv = 91.1880
 Zwidth = 0
 g_HZZ = 1
 mf = 10
+fwidth = 0
+vev = pyHELAS.Info['const']['vev']
+G_Hff = - mf/vev * np.array([1, 1])
 
 if M - mv - 2*mf < 0:
     print('ERROR: too large fermion mass')
@@ -155,6 +211,8 @@ if M - mv - 2*mf < 0:
     exit()
 #cR, cL = 1, 1
 cR, cL = 0.2312, -0.2688
+COUP = [cL, cR]
+
 
 # cth = np.random.uniform(-1,1)
 # mmax = (M - mv)
@@ -169,11 +227,6 @@ rho, AA = get_rho_pure(cth, msq)
 
 pp = get_momenta(cth, msq)
 
-norm1_sq = 0
-norm2_sq = 0
-Amp1 = {}
-Amp2 = {}
-
 print('cos(bar theta) = ', cth)
 print('mbar = ', mbar)
 print('mf = ', mf)
@@ -183,79 +236,71 @@ print('pB:', pp['B'])
 print('pZ:', pp['Z'])
 print('pH:', pp['H'])
 
+header = ['lA', 'lB', 'lZ', 'AmpTot(Graph1 + Graph2 + Graph3)', 'Amp1(Graph1)']
+outlist = []
+
 for lA in [1, -1]:
     for lB in [1, -1]:
         for lZ in [1, 0, -1]:
 
-            if lA != -1: continue
-            if lB != 1: continue
-            if lZ != 0: continue
-            print('lA, lB, lZ', lA, lB, lZ)
+            # if lA != -1: continue
+            # if lB != 1: continue
+            # if lZ != 0: continue
 
             # Defining external momenta  
             FO = pyHELAS.OXXXXX(pp['A'], lA, 'fermion') # tau-
             FI = pyHELAS.IXXXXX(pp['B'], lB, 'fbar') # tau+
             VC = pyHELAS.VXXXXX(pp['Z'], lZ, 'out') # Z
             SC = pyHELAS.SXXXXX(pp['H'], 'in') # Higgs
+            externals = [FO, FI, VC, SC]
 
-            print('Ubar(A)({}) ='.format(lA), FO.spbar.real)
-            print('V(B)({}) ='.format(lB), FI.sp.real)
-            print('epsilon*({}) ='.format(lZ), VC.pol)
-            PL = pyHELAS.PL
-            PR = pyHELAS.PR
-            gam = pyHELAS.gam
+            #check_momentum_conservation
+            #print('momentum sum:', FO.p - FI.p + VC.p + SC.p)
 
-            JL = np.array([ FO.spbar @ gam[mu] @ PL @ FI.sp for mu in range(4)])
-            JR = np.array([ FO.spbar @ gam[mu] @ PR @ FI.sp for mu in range(4)])
+            ###################
+            # Diagram-1 
+            ###################
+            amp1A = get_amp1A(externals, COUP) # Method-A: H + Z -> Z*, Amp = Z + f + fbar )
+            amp1B = get_amp1B(externals, COUP) # Method-B: f + fbar -> Z*, Amp = Z + Z* + H 
+            #check consistency 
+            diff = abs(amp1A - amp1B)/max(1e-12, abs(amp1A))
+            if diff > 1e-12:
+                print('ERROR: amp1A disagrees with amp1B')
+                print("|amp1A - amp1B|=", diff)                
+                exit()
+            else: amp1 = amp1A
 
-            print('Real(JL)',JL.real)
-            print('Imag(JL)',JL.imag)
-            print('Real(JR)',JR.real)
-            print('Imag(JR)',JR.imag)
+            ###################
+            # Diagram-2
+            ###################
+            amp2A = get_amp2A(externals, COUP) # Method-A: H + Z -> Z*, Amp = Z + f + fbar )
+            amp2B = get_amp2B(externals, COUP) # Method-B: f + fbar -> Z*, Amp = Z + Z* + H 
+            #check consistency 
+            diff = abs(amp2A - amp2B)/max(1e-12, abs(amp2A))
+            if diff > 1e-12:
+                print('ERROR: amp2A disagrees with amp2B')
+                print("amp2A",amp2A)
+                print("amp2B",amp2B)
+                print("|amp2A - amp2B|=", diff)                
+                exit()
+            else: amp2 = amp2A
 
+            ###################
+            # Diagram-3
+            ###################
+            amp3A = get_amp3A(externals, COUP) # Method-A: H + Z -> Z*, Amp = Z + f + fbar )
+            amp3B = get_amp3B(externals, COUP) # Method-B: f + fbar -> Z*, Amp = Z + Z* + H 
+            #check consistency 
+            diff = abs(amp3A - amp3B)/max(1e-12, abs(amp3A))
+            if diff > 1e-12:
+                print('ERROR: amp3A disagrees with amp3B')
+                print("amp3A",amp3A)
+                print("amp3B",amp3B)
+                print("|amp3A - amp3B|=", diff)                
+                exit()
+            else: amp3 = amp3A
 
-            kk = pp['A'] + pp['B']
-
-            print('k^mu', kk)
-            #kk = pp['H'] - pp['Z']
-
-            JK = pyHELAS.Ldot(cL*JL + cR*JR, kk)
-            KE = pyHELAS.Ldot(kk, VC.pol)
-
-            print('(cL*JL + cR*JR).k =', JK.real)
-            print('k.epsilon*(0) =', KE.real)
-
-
-            # print('Ubar(A).gam0 =', FO.spbar @ gam[0])
-            # print('Real(Ubar.gam[mu].PL.V) =', JL.real)
-            # print('Im(Ubar.gam[mu].PL.V) =', JL.imag)
-            # print('Real(Ubar.gam[mu].PR.V) =', JR.real)
-            # print('Im(Ubar.gam[mu].PR.V) =', JR.imag)
-
-            # HELAS method 1 ( H + Z -> Z*, Amp = Z + f + fbar )
-            Zs = pyHELAS.JVSXXX(VC, SC, g_HZZ, mZ, Zwidth)
-            amp1 = pyHELAS.IOVXXX(FI, FO, Zs, [cL, cR])
-            Amp1[(lA,lB,lZ)] = amp1
-
-            # HELAS method 2 (f + fbar -> Z*, Amp = Z + Z* + H )
-            Zs2 = pyHELAS.JIOXXX(FI,FO,[cL, cR], mZ, Zwidth) 
-            amp2 = pyHELAS.VVSXXX(Zs2, VC, SC, g_HZZ) 
-            Amp2[(lA,lB,lZ)] = amp2
-
-            #print('amp1, amp2 =', amp1, amp2)
-
-            norm1_sq += np.abs(amp1)**2
-            norm2_sq += np.abs(amp2)**2
-
-exit()
-header = ['lA', 'lB', 'lZ', 'HELAS1', 'HELAS2', 'Analytic']
-outlist = []
-for lA in [1, -1]:
-    for lB in [1, -1]:
-        for lZ in [1, 0, -1]:
-            print(lA, lB, lZ, ' ', Amp1[(lA,lB,lZ)].imag)
-
-            outlist.append([ lA, lB, lZ, Amp1[(lA,lB,lZ)].imag, Amp2[(lA,lB,lZ)].imag, AA[lA,lB,lZ] ])
+            outlist.append([ lA, lB, lZ, amp1+amp2+amp3, amp1 ])
 
 pretty_output( header, outlist )
 

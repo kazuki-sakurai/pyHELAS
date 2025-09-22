@@ -199,11 +199,11 @@ def get_amp3B(externals, COUP ):
 mH = M = 125.
 mZ = mv = 91.1880
 Zwidth = 0
-g_HZZ = 1
 mf = 10
 fwidth = 0
 vev = pyHELAS.Info['const']['vev']
 G_Hff = - mf/vev * np.array([1, 1])
+g_HZZ = 2 * mZ**2 / vev 
 
 if M - mv - 2*mf < 0:
     print('ERROR: too large fermion mass')

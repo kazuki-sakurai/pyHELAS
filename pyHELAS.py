@@ -47,47 +47,55 @@ from math import sqrt, cos, sin, pi
 
 class Structure: pass
 
-Gf = 1.16639e-5
-aEM = 1/132.507
+MeV = 10**-3
+mH = 125.
+mW = 80.369
 mZ = 91.188
-r2 = sqrt(2.)
-thW = 1/2 *np.arcsin(2*sqrt( pi/r2 *aEM /(Gf *mZ**2)))
-sinW = np.sin(thW)
-cosW = np.cos(thW)
-gEM = np.sqrt(4*pi*aEM)
-gW =gEM/sinW
-vev = (sqrt(2) * Gf)**(-1/2)
-mW = mZ*cosW
+mt = 173
+mtau = 1.777
+Twidth = 1.4915
+Zwidth = 2.4414
+Wwidth = 2.085
+Hwidth = 4*MeV
+
+Gf = 1.16639e-5
+#aMZ = 1/128
+aMZ = 1/132.507
+thw = 1/2 *np.arcsin(2*np.sqrt(np.sqrt(2)/2 *pi *aMZ /(Gf *mZ**2)))
+sinW = np.sin(thw)
+cosW = np.cos(thw)
 
 gev2tobarn = 0.3894e-3
 
-Info = {
-    'e': {'m':0, 'w':0, 'Q':-1, 'T3':-1/2},
-    't': {'m':173, 'w':1.4915, 'Q':2/3, 'T3':1/2}, 
-    'b': {'m':4.2, 'w':0, 'Q':-1/3, 'T3':-1/2}, 
-    'mu': {'m':0.106, 'w':0, 'Q':-1, 'T3':-1/2},
-    'gamma': {'m':0, 'w':0},
-    'Z': {'m':91.188, 'w':2.441404}, 
-    'W': {'m':80.4, 'w':2.1},  
-    'const': {'Gf':Gf, 'aEM':aEM, 'thW':thW, 'sinW':sinW, 'cosW':cosW, 'gEM':gEM, 'gW':gW, 'vev': vev },
-    'G': {'WF': [gW, 0], 'WWA': gW*sinW, 'WWZ': gW*cosW, 'hZZ': 2j*mZ**2/vev, 'hWW': 2j*mW**2/vev}
-    }
+gA = sqrt(4*pi*aMZ)
+gW = gA/sinW
+gZ = gA/(sinW*cosW)
 
-Q, T3 = 2/3, 1/2
-Info['G']['AUU'] = gEM*Q * np.array([1, 1])
-Info['G']['ZUU'] = gW/cosW * np.array([(T3 - sinW**2 * Q), (0 - sinW**2 * Q)])
+vev = 2*mZ/gZ
 
-Q, T3 = -1/3, -1/2
-Info['G']['ADD'] = gEM*Q * np.array([1, 1])
-Info['G']['ZDD'] = gW/cosW * np.array([(T3 - sinW**2 * Q), (0 - sinW**2 * Q)])
+lam = vev**2 / mH**2
 
-Q, T3 = -1, -1/2
-Info['G']['AEE'] = gEM*Q * np.array([1, 1])
-Info['G']['ZEE'] = gW/cosW * np.array([(T3 - sinW**2 * Q), (0 - sinW**2 * Q)])
+COUP = {}
+COUP['HZZ'] = gZ * mZ
+COUP['HWW'] = gW * mW
+COUP['HHH'] = -3 * lam * vev 
+COUP['HHHH'] = -3 * lam 
+COUP['WWHH'] = gW**2
+COUP['ZZHH'] = gZ**2
 
-Q, T3 = 0, 1/2
-Info['G']['ANN'] = gEM*Q * np.array([1, 1])
-Info['G']['ZNN'] = gW/cosW * np.array([(T3 - sinW**2 * Q), (0 - sinW**2 * Q)])
+COUP['HTT'] = -4*gZ*mt/mZ * np.array([1,1])
+COUP['HTAUTAU'] = -4*gZ*mtau/mZ * np.array([1,1])
+ 
+Q =   -1; COUP['AEE'] = -gA*Q * np.array([1,1])
+Q =  2/3; COUP['AUU'] = -gA*Q * np.array([1,1])
+Q = -1/3; COUP['ADD'] = -gA*Q * np.array([1,1])
+
+Q =    0; COUP['ZNN'] = -gZ * np.array([ 1/2 -Q*sinW**2, -Q*sinW**2])
+Q =   -1; COUP['ZEE'] = -gZ * np.array([-1/2 -Q*sinW**2, -Q*sinW**2])
+Q =  2/3; COUP['ZUU'] = -gZ * np.array([ 1/2 -Q*sinW**2, -Q*sinW**2])
+Q = -1/3; COUP['ZDD'] = -gZ * np.array([-1/2 -Q*sinW**2, -Q*sinW**2])
+
+COUP['WFF'] = np.array([-gW/sqrt(2), 0]) 
 
 
 gmet = np.eye(4); gmet[1,1], gmet[2,2], gmet[3,3] = -1, -1, -1
@@ -417,14 +425,14 @@ def JVSXXX(VC,SC,G,VMASS,VWIDTH):
     data.pol = pol
     return data
 
-# def HVVXXX(V1,V2,G,SMASS,SWIDTH):
-#     p_out = V1.p + V2.p
-#     prop = get_scalar_propagator(p_out,SMASS,SWIDTH)
-#     WF = G * prop * Ldot( V1.pol, V2.pol )
-#     data = Structure()
-#     data.p = p_out
-#     data.WF = WF
-#     return data
+def HVVXXX(V1,V2,G,SMASS,SWIDTH):
+    p_out = V1.p + V2.p
+    prop = get_scalar_propagator(p_out,SMASS,SWIDTH)
+    WF = G * prop * Ldot( V1.pol, V2.pol )
+    data = Structure()
+    data.p = p_out
+    data.WF = WF
+    return data
 
 
 ### VVV vertex

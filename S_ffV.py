@@ -194,14 +194,12 @@ def get_amp3B(externals, COUP ):
     amp = pyHELAS.IOSXXX(FI_off,FO,SC,G_Hff)
     return amp
 
-
-
-mH = M = 125.
-mZ = mv = 91.1880
+mH = M = pyHELAS.mH
+mZ = mv = pyHELAS.mZ
 Zwidth = 0
 mf = 10
 fwidth = 0
-vev = pyHELAS.Info['const']['vev']
+vev = pyHELAS.vev
 G_Hff = - mf/vev * np.array([1, 1])
 g_HZZ = 2 * mZ**2 / vev 
 
